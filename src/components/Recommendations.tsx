@@ -18,7 +18,7 @@ const ICONS: Record<Recommendation["id"], typeof Sparkles> = {
 const rowClass =
   "flex min-h-16 w-full items-center gap-4 rounded-2xl border border-border bg-surface p-4 text-left transition-colors hover:border-primary/60";
 
-function RowBody({ rec, note }: { rec: Recommendation; note?: string }) {
+function RowBody({ rec, note }: { rec: Recommendation; note?: string | undefined }) {
   const Icon = ICONS[rec.id];
   return (
     <>
