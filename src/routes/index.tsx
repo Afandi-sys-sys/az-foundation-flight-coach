@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useHydrated } from "@tanstack/react-router";
-import { ArrowRight, ClipboardCheck, Layers, Sparkles } from "lucide-react";
+import { Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Panel, StatCard } from "@/components/kit";
 import { ReadinessCard, TopicProgress } from "@/components/Readiness";
+import { Recommendations } from "@/components/Recommendations";
 import { PRACTICE_QUESTIONS } from "@/data/questions";
 import { useProgress } from "@/lib/progress-store";
-import { canTakePostTest, dueCards, flashcardSummary, percent, POST_TEST_MIN_PRACTICE } from "@/lib/progress-logic";
+import { dueCards, flashcardSummary, percent } from "@/lib/progress-logic";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -28,34 +29,6 @@ export const Route = createFileRoute("/")({
   }),
   component: Home,
 });
-
-function NextStep({
-  to,
-  icon: Icon,
-  title,
-  body,
-}: {
-  to: "/practice" | "/review" | "/tests";
-  icon: typeof Sparkles;
-  title: string;
-  body: string;
-}) {
-  return (
-    <Link
-      to={to}
-      className="flex min-h-16 items-center gap-4 rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-primary/60"
-    >
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-accent">
-        <Icon className="size-5" aria-hidden />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block font-semibold">{title}</span>
-        <span className="block text-sm text-muted-foreground">{body}</span>
-      </span>
-      <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-    </Link>
-  );
-}
 
 function Home() {
   const state = useProgress();
@@ -136,45 +109,7 @@ function Home() {
         )}
       </Panel>
 
-      <Panel>
-        <h2 className="text-xl font-bold">Your next steps</h2>
-        <div className="mt-4 space-y-3">
-          {!state.tests.pre ? (
-            <NextStep
-              to="/tests"
-              icon={ClipboardCheck}
-              title="Take the 9-question baseline test"
-              body="See where you're starting from. Takes about 5 minutes."
-            />
-          ) : null}
-          {due > 0 ? (
-            <NextStep
-              to="/review"
-              icon={Layers}
-              title={`${due} ${due === 1 ? "flashcard" : "flashcards"} to revise`}
-              body="Revisit questions you missed, while they're fresh."
-            />
-          ) : null}
-          <NextStep
-            to="/practice"
-            icon={Sparkles}
-            title="Smart practice"
-            body="10 questions picked from the areas where you need the most practice."
-          />
-          {state.tests.pre && !state.tests.post ? (
-            <NextStep
-              to="/tests"
-              icon={ClipboardCheck}
-              title={canTakePostTest(state) ? "Your post-test is ready" : "Post-test"}
-              body={
-                canTakePostTest(state)
-                  ? "Compare your score with your baseline."
-                  : `Unlocks after ${POST_TEST_MIN_PRACTICE} practice questions (${Math.min(answered, POST_TEST_MIN_PRACTICE)}/${POST_TEST_MIN_PRACTICE}).`
-              }
-            />
-          ) : null}
-        </div>
-      </Panel>
+      <Recommendations state={state} />
 
       <TopicProgress state={state} />
     </div>

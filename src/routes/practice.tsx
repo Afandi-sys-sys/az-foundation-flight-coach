@@ -5,7 +5,7 @@ import { QuizRunner } from "@/components/QuizRunner";
 import { DOMAINS, type DomainId } from "@/data/domains";
 import { PRACTICE_QUESTIONS } from "@/data/questions";
 import { pickAdaptive } from "@/lib/insights";
-import { startQuiz } from "@/lib/progress-logic";
+import { questionIdsFor, startQuiz } from "@/lib/progress-logic";
 import { newId, updateProgress, useProgress } from "@/lib/progress-store";
 
 export const Route = createFileRoute("/practice")({
@@ -49,7 +49,7 @@ function PracticePage() {
   const plan = pickAdaptive(state, 10, () => 0.5);
 
   const startSet = (domain?: DomainId) => {
-    const ids = PRACTICE_QUESTIONS.filter((q) => !domain || q.domain === domain).map((q) => q.id);
+    const ids = questionIdsFor(domain);
     updateProgress((s) =>
       startQuiz(s, {
         id: newId("quiz"),
