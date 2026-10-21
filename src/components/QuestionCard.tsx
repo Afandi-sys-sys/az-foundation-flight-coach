@@ -14,7 +14,7 @@ interface Props {
   onChoose: (i: number) => void;
   /** When false, correct/incorrect colours are hidden after submission (used in tests). */
   revealCorrect?: boolean;
-  reason?: string;
+  reason?: string | undefined;
 }
 
 export function QuestionCard({ question, chosen, submitted, onChoose, revealCorrect = true, reason }: Props) {
