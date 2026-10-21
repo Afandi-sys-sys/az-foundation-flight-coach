@@ -1,4 +1,5 @@
 import type { DomainId } from "./domains";
+import { rotateOptions } from "./rotate";
 
 /**
  * Original practice questions written for CloudPrep Africa, based on the public
@@ -19,7 +20,7 @@ export interface Question {
   example: string;
 }
 
-export const PRACTICE_QUESTIONS: Question[] = [
+const RAW_PRACTICE: Question[] = [
   // ---------------- Cloud Concepts ----------------
   {
     id: "cc-01",
@@ -645,6 +646,17 @@ export const PRACTICE_QUESTIONS: Question[] = [
       "An alert fires when a ticket-booking website's response time jumps, so the team can fix it before a big match.",
   },
 ];
+
+/** The 12 questions from the first CloudPrep Africa release keep their original option order. */
+const ORIGINAL_IDS = new Set([
+  "cc-01", "cc-02", "cc-03", "cc-04",
+  "ar-01", "ar-02", "ar-03", "ar-04",
+  "gv-01", "gv-02", "gv-03", "gv-04",
+]);
+
+export const PRACTICE_QUESTIONS: Question[] = RAW_PRACTICE.map((q, i) =>
+  ORIGINAL_IDS.has(q.id) ? q : rotateOptions(q, i),
+);
 
 export const QUESTION_BY_ID: Record<string, Question> = Object.fromEntries(
   PRACTICE_QUESTIONS.map((q) => [q.id, q]),

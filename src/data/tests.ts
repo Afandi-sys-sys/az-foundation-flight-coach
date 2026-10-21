@@ -1,11 +1,12 @@
 import type { Question } from "./questions";
+import { rotateOptions } from "./rotate";
 
 /**
  * Original pre-test and post-test forms. Each form covers the same skills
  * (3 questions per learning area) with different questions, so learners
  * don't simply remember answers from the first test.
  */
-export const PRE_TEST: Question[] = [
+const RAW_PRE: Question[] = [
   {
     id: "pre-cc-1",
     domain: "cloud",
@@ -114,7 +115,7 @@ export const PRE_TEST: Question[] = [
   },
 ];
 
-export const POST_TEST: Question[] = [
+const RAW_POST: Question[] = [
   {
     id: "post-cc-1",
     domain: "cloud",
@@ -231,6 +232,9 @@ export const POST_TEST: Question[] = [
     example: "A finance manager checks last month's spend by department before a budget meeting.",
   },
 ];
+
+export const PRE_TEST: Question[] = RAW_PRE.map((q, i) => rotateOptions(q, i * 3 + 1));
+export const POST_TEST: Question[] = RAW_POST.map((q, i) => rotateOptions(q, i * 3 + 2));
 
 export const TEST_QUESTION_BY_ID: Record<string, Question> = Object.fromEntries(
   [...PRE_TEST, ...POST_TEST].map((q) => [q.id, q]),
