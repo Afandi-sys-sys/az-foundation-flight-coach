@@ -11,4 +11,5 @@
 - [x] 7. Mobile-friendly layout (bottom nav on small screens, large tap targets)
 - [x] Tests for scheduling, readiness, de-duplication, post-test unlock
 - [x] Clearer feedback panel: Result, Correct answer, Why it is correct, Why your choice was incorrect, Real-world example, Next Question
+- [x] Revision Flashcards: nav item + home card, Reveal Answer, topic label, Saved / Need revision / Understood counts, no duplicates
 - [ ] Optional: AZ Loop source file was never attached — share it if specific ideas from it should be added
