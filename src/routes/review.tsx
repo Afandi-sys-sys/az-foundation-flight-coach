@@ -128,7 +128,12 @@ function ReviewPage() {
             <h2 className="text-lg font-bold">Your flashcards ({all.length})</h2>
             <ul className="mt-3 divide-y divide-border">
               {[...due, ...upcoming].map((c) => (
-                <FlashcardRow key={c.qid} card={c} now={now} />
+                <FlashcardRow
+                  key={c.qid}
+                  card={c}
+                  now={now}
+                  misses={(state.answers[c.qid]?.attempts ?? 0) - (state.answers[c.qid]?.correctCount ?? 0)}
+                />
               ))}
             </ul>
           </Panel>
@@ -189,7 +194,7 @@ function StatusChip({ card }: { card: Card }) {
   );
 }
 
-function FlashcardRow({ card, now }: { card: Card; now: number }) {
+function FlashcardRow({ card, now, misses }: { card: Card; now: number; misses: number }) {
   const q = question(card.qid);
   return (
     <li className="flex items-start justify-between gap-3 py-3 text-sm">
@@ -198,11 +203,7 @@ function FlashcardRow({ card, now }: { card: Card; now: number }) {
         <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
           <StatusChip card={card} />
           <span>{DOMAIN_BY_ID[q.domain].name}</span>
-          {card.lapses > 0 ? (
-            <span>
-              · missed {card.lapses + 1} {card.lapses + 1 === 1 ? "time" : "times"}
-            </span>
-          ) : null}
+          {misses > 1 ? <span>Missed {misses} times in practice</span> : null}
         </span>
       </span>
       <span
