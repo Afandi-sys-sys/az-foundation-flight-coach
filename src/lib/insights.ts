@@ -4,7 +4,7 @@
  */
 import { DOMAINS, type DomainId } from "@/data/domains";
 import { PRACTICE_QUESTIONS, type Question } from "@/data/questions";
-import type { ProgressState } from "./progress-logic";
+import { POST_TEST_MIN_PRACTICE, type ProgressState } from "./progress-logic";
 
 export interface DomainStats {
   id: DomainId;
@@ -114,4 +114,208 @@ export function pickAdaptive(
     reasons: Object.fromEntries(chosen.map((c) => [c.q.id, c.reason])),
     focus,
   };
+}
+
+// ---------------- Readiness dashboard ----------------
+
+/** Different questions a topic needs before we judge it (or show a readiness estimate). */
+export const MIN_TOPIC_QUESTIONS = 3;
+
+/**
+ * Accuracy across every recorded practice answer (retries included), so it
+ * reflects real answer history. Null when nothing has been answered.
+ */
+export function practiceAccuracy(state: ProgressState): {
+  attempts: number;
+  correct: number;
+  accuracy: number | null;
+} {
+  let attempts = 0;
+  let correct = 0;
+  for (const a of Object.values(state.answers)) {
+    attempts += a.attempts;
+    correct += a.correctCount;
+  }
+  return { attempts, correct, accuracy: attempts ? correct / attempts : null };
+}
+
+export type TopicStrength = "stronger" | "weaker" | "middle" | "even" | "not-enough-data";
+
+export interface TopicPerformance {
+  id: DomainId;
+  name: string;
+  /** Questions available in this topic. */
+  total: number;
+  /** Different questions answered at least once. */
+  answered: number;
+  attempts: number;
+  correctAttempts: number;
+  /** correctAttempts / attempts, 0..1, or null with no answers. */
+  accuracy: number | null;
+  enoughData: boolean;
+  strength: TopicStrength;
+}
+
+/**
+ * Per-topic accuracy from recorded answers. A topic is only called "stronger"
+ * or "weaker" once it and at least one other topic have MIN_TOPIC_QUESTIONS
+ * different questions answered, and their accuracy actually differs.
+ */
+export function topicPerformance(state: ProgressState, questions: Question[] = PRACTICE_QUESTIONS): TopicPerformance[] {
+  const base = DOMAINS.map((d) => {
+    const qs = questions.filter((q) => q.domain === d.id);
+    let answered = 0;
+    let attempts = 0;
+    let correctAttempts = 0;
+    for (const q of qs) {
+      const a = state.answers[q.id];
+      if (!a) continue;
+      answered += 1;
+      attempts += a.attempts;
+      correctAttempts += a.correctCount;
+    }
+    return {
+      id: d.id,
+      name: d.name,
+      total: qs.length,
+      answered,
+      attempts,
+      correctAttempts,
+      accuracy: attempts ? correctAttempts / attempts : null,
+      enoughData: answered >= MIN_TOPIC_QUESTIONS,
+    };
+  });
+  const judged = base.filter((t) => t.enoughData && t.accuracy !== null);
+  const accs = judged.map((t) => t.accuracy as number);
+  const max = Math.max(...accs);
+  const min = Math.min(...accs);
+  return base.map((t) => {
+    let strength: TopicStrength = "not-enough-data";
+    if (t.enoughData && judged.length >= 2) {
+      const acc = t.accuracy as number;
+      if (max === min) strength = "even";
+      else if (acc === max) strength = "stronger";
+      else if (acc === min) strength = "weaker";
+      else strength = "middle";
+    }
+    return { ...t, strength };
+  });
+}
+
+export interface ReadinessStatus {
+  /** True once every topic has MIN_TOPIC_QUESTIONS different questions answered. */
+  ready: boolean;
+  /** Unofficial learning indicator 0–100, or null while there is not enough data. */
+  score: number | null;
+  /** Topics still short of data, with how many more questions each needs. */
+  missing: { id: DomainId; name: string; needed: number }[];
+}
+
+export function readinessStatus(state: ProgressState, questions: Question[] = PRACTICE_QUESTIONS): ReadinessStatus {
+  const missing = topicPerformance(state, questions)
+    .filter((t) => !t.enoughData)
+    .map((t) => ({ id: t.id, name: t.name, needed: MIN_TOPIC_QUESTIONS - t.answered }));
+  const ready = missing.length === 0;
+  return { ready, score: ready ? readinessEstimate(state, questions) : null, missing };
+}
+
+// ---------------- Personalised recommendations ----------------
+
+export type RecommendationAction =
+  | { kind: "link"; to: "/tests" | "/review" | "/practice" }
+  | { kind: "topic"; domain: DomainId };
+
+export interface Recommendation {
+  id: "baseline" | "flashcards" | "weakest-topic" | "spread-topics" | "post-test" | "smart-practice";
+  title: string;
+  why: string;
+  action: RecommendationAction;
+}
+
+const pct = (n: number) => Math.round(n * 100);
+
+/**
+ * Suggestions built only from the learner's own saved data. Each one carries a
+ * short reason so the learner can see why it appears.
+ */
+export function recommendations(
+  state: ProgressState,
+  now: number,
+  questions: Question[] = PRACTICE_QUESTIONS,
+): Recommendation[] {
+  const recs: Recommendation[] = [];
+
+  if (!state.tests.pre) {
+    recs.push({
+      id: "baseline",
+      title: "Take the 9-question baseline test",
+      why: "You haven't taken it yet. A starting score lets you measure your improvement later.",
+      action: { kind: "link", to: "/tests" },
+    });
+  }
+
+  const cards = Object.values(state.cards);
+  const due = cards.filter((c) => c.due <= now).length;
+  const needsRevision = cards.filter((c) => c.step === 0).length;
+  if (due > 0) {
+    recs.push({
+      id: "flashcards",
+      title: `Review ${due} missed-question ${due === 1 ? "flashcard" : "flashcards"}`,
+      why:
+        needsRevision > 0
+          ? `${needsRevision} ${needsRevision === 1 ? "question you missed is" : "questions you missed are"} still marked “Needs revision”.`
+          : `${due === 1 ? "A card you understood is" : "Cards you understood are"} due for a quick check.`,
+      action: { kind: "link", to: "/review" },
+    });
+  }
+
+  const topics = topicPerformance(state, questions);
+  const weakest = topics.find((t) => t.strength === "weaker");
+  const lacking = topics.filter((t) => !t.enoughData);
+  if (weakest && weakest.accuracy !== null) {
+    recs.push({
+      id: "weakest-topic",
+      title: `Practise ${weakest.name}`,
+      why: `This is your weakest topic: ${pct(weakest.accuracy)}% accuracy (${weakest.correctAttempts} of ${weakest.attempts} answers correct).`,
+      action: { kind: "topic", domain: weakest.id },
+    });
+  } else if (lacking.length > 0 && Object.keys(state.answers).length > 0) {
+    const t = [...lacking].sort((a, b) => a.answered - b.answered)[0]!;
+    const needed = MIN_TOPIC_QUESTIONS - t.answered;
+    recs.push({
+      id: "spread-topics",
+      title: `Try ${t.name}`,
+      why: `Answer ${needed} more ${needed === 1 ? "question" : "questions"} here so your topics can be compared fairly.`,
+      action: { kind: "topic", domain: t.id },
+    });
+  }
+
+  if (state.tests.pre && Object.keys(state.answers).length >= POST_TEST_MIN_PRACTICE) {
+    const last = state.tests.post;
+    const practisedSince = last ? state.history.some((h) => h.at > last.finishedAt) : true;
+    if (!last || practisedSince) {
+      recs.push({
+        id: "post-test",
+        title: last ? "Retake the post-test" : "Take the post-test",
+        why: last
+          ? "You've practised since your last post-test. See whether your score has changed."
+          : `You've done the baseline test and ${POST_TEST_MIN_PRACTICE}+ practice questions, so a comparison is now meaningful.`,
+        action: { kind: "link", to: "/tests" },
+      });
+    }
+  }
+
+  if (!recs.some((r) => r.id === "weakest-topic" || r.id === "spread-topics")) {
+    recs.push({
+      id: "smart-practice",
+      title: "Smart practice",
+      why:
+        Object.keys(state.answers).length === 0
+          ? "A good first step: 10 questions from all three topics."
+          : "10 questions picked from your answer history, with missed questions first.",
+      action: { kind: "link", to: "/practice" },
+    });
+  }
+
+  return recs;
 }
