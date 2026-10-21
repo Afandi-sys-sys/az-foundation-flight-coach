@@ -286,7 +286,7 @@ export type ReviewGrade = "again" | "good";
 /** Days until the next review after pressing "Got it" on a card at `step`. */
 export function intervalForStep(step: number): number {
   const i = Math.min(Math.max(step, 0), REVIEW_INTERVAL_DAYS.length - 1);
-  return REVIEW_INTERVAL_DAYS[i] ?? REVIEW_INTERVAL_DAYS[REVIEW_INTERVAL_DAYS.length - 1];
+  return REVIEW_INTERVAL_DAYS[i] ?? 16;
 }
 
 export function reviewCard(
