@@ -4,6 +4,7 @@ import { ArrowDownRight, ArrowUpRight, CheckCircle2, Lock, Minus, XCircle } from
 import { Button } from "@/components/ui/button";
 import { PageHeading, Panel, ProgressBar } from "@/components/kit";
 import { QuestionCard } from "@/components/QuestionCard";
+import { TestHistoryList, UnlockComparison } from "@/components/TestHistory";
 import { DOMAINS } from "@/data/domains";
 import { testQuestion } from "@/data/tests";
 import { formatDate, signed } from "@/lib/format";
@@ -64,7 +65,14 @@ function TestsPage() {
         then the post-test once you have practised, and compare.
       </PageHeading>
 
-      {pre && post ? <Comparison pre={pre} post={post} /> : null}
+      {pre && post ? (
+        <Comparison pre={pre} post={post} />
+      ) : (
+        <Panel>
+          <h2 className="text-lg font-bold">Your before-and-after comparison</h2>
+          <UnlockComparison state={state} />
+        </Panel>
+      )}
 
       <Panel>
         <div className="flex items-start justify-between gap-3">
@@ -147,6 +155,12 @@ function TestsPage() {
         {reviewing === "post" && post ? <TestReview result={post} /> : null}
       </Panel>
 
+      <Panel>
+        <h2 className="text-lg font-bold">Test history</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Every test you complete is kept. New results never replace old ones.</p>
+        <TestHistoryList state={state} />
+      </Panel>
+
       <p className="text-xs text-muted-foreground">
         Test scores show your learning progress in this app only. They do not predict your result in the real exam.
       </p>
@@ -169,14 +183,14 @@ function Comparison({ pre, post }: { pre: TestResult; post: TestResult }) {
   const Icon = diff > 0 ? ArrowUpRight : diff < 0 ? ArrowDownRight : Minus;
   return (
     <section className="rounded-3xl border border-border bg-hero p-6 shadow-glow">
-      <p className="eyebrow">Your change</p>
+      <p className="eyebrow">Your change: baseline vs latest post-test</p>
       <div className="mt-3 grid grid-cols-3 items-end gap-3 text-center">
         <div>
           <p className="text-xs text-muted-foreground">Pre-test</p>
           <p className="font-display text-3xl font-bold">{p1}%</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Post-test</p>
+          <p className="text-xs text-muted-foreground">Latest post-test</p>
           <p className="font-display text-3xl font-bold">{p2}%</p>
         </div>
         <div>
@@ -191,7 +205,7 @@ function Comparison({ pre, post }: { pre: TestResult; post: TestResult }) {
             <Icon className="size-6" aria-hidden />
             {signed(diff)}
           </p>
-          <p className="text-[11px] text-muted-foreground">points</p>
+          <p className="text-[11px] text-muted-foreground">percentage points</p>
         </div>
       </div>
       <ul className="mt-6 space-y-4">
