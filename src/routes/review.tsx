@@ -181,7 +181,7 @@ function StatusChip({ card }: { card: Card }) {
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold",
-        understood ? "bg-success-soft text-success" : "bg-secondary text-warning",
+        understood ? "bg-success-soft text-success" : "bg-warning-soft text-warning",
       )}
     >
       {understood ? "Understood" : "Needs revision"}
@@ -197,7 +197,7 @@ function FlashcardRow({ card, now }: { card: Card; now: number }) {
         <span className="line-clamp-2">{q.prompt}</span>
         <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
           <StatusChip card={card} />
-          <span>{DOMAIN_BY_ID[q.domain].short}</span>
+          <span>{DOMAIN_BY_ID[q.domain].name}</span>
           {card.lapses > 0 ? (
             <span>
               · missed {card.lapses + 1} {card.lapses + 1 === 1 ? "time" : "times"}
