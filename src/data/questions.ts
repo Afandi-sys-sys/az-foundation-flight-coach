@@ -53,14 +53,14 @@ const RAW_PRACTICE: Question[] = [
     ],
     answer: 2,
     explanation:
-      "IaaS gives you virtual machines, so you manage the operating system yourself. PaaS and SaaS hide more of it from you.",
+      "With IaaS, the cloud provider manages the physical infrastructure (buildings, servers, networking) while you manage the operating system and applications. PaaS and SaaS hide more of this from you, so they give you less control.",
     wrong: {
       0: "With SaaS you just use finished software. The provider manages everything underneath, including the operating system.",
       1: "With PaaS the provider manages the operating system so you can focus on your code.",
       3: "Serverless hides servers completely. You only supply code and never touch the operating system.",
     },
     example:
-      "A Lagos fintech team rents a virtual machine so they can install a specific Linux version their security tools need.",
+      "A Lagos fintech team rents a virtual machine in Azure, then installs and maintains its own Linux version and security tools on it.",
   },
   {
     id: "cc-03",
@@ -70,7 +70,7 @@ const RAW_PRACTICE: Question[] = [
       "A bank keeps sensitive data in its own data centre but uses the public cloud for its website. What model is this?",
     options: ["Public cloud", "Hybrid cloud", "Private cloud only", "Community hosting"],
     answer: 1,
-    explanation: "A hybrid cloud combines private (own) infrastructure with public cloud resources.",
+    explanation: "A hybrid cloud combines your own private infrastructure with public cloud resources, so you can keep some workloads in-house and run others in the cloud.",
     wrong: {
       0: "Public cloud alone would mean everything, including the sensitive data, runs on a provider's shared infrastructure.",
       2: "Private cloud only would mean the website also runs in the bank's own data centre.",
@@ -87,7 +87,7 @@ const RAW_PRACTICE: Question[] = [
       "An app automatically adds more servers during a busy sale and removes them afterwards. What is this called?",
     options: ["High availability", "Disaster recovery", "Elasticity", "Governance"],
     answer: 2,
-    explanation: "Elasticity means resources grow and shrink automatically to match demand.",
+    explanation: "Elasticity means the cloud adds resources automatically when demand rises and removes them when demand falls, so you are not paying for capacity you are not using.",
     wrong: {
       0: "High availability is about staying online when something fails, not about matching busy and quiet periods.",
       1: "Disaster recovery is about restoring service after a major outage.",
@@ -155,7 +155,7 @@ const RAW_PRACTICE: Question[] = [
       "On-premises software",
     ],
     answer: 2,
-    explanation: "SaaS delivers finished software over the internet. The provider manages everything else.",
+    explanation: "SaaS delivers finished, ready-to-use software over the internet. The provider manages the servers, operating system, updates and the app itself — you just sign in and use it.",
     wrong: {
       0: "With IaaS the NGO would rent virtual machines and manage the operating system and email software itself.",
       1: "PaaS is for building and running your own apps, not for using finished email software.",
@@ -218,7 +218,7 @@ const RAW_PRACTICE: Question[] = [
     ],
     answer: 0,
     explanation:
-      "In the public cloud, a provider owns the hardware and offers services to many customers over the internet.",
+      "In the public cloud, a provider such as Microsoft owns and runs the hardware and shares it securely between many customers, who reach their services over the internet.",
     wrong: {
       1: "That describes a private cloud.",
       2: "That describes a hybrid cloud.",
@@ -297,7 +297,7 @@ const RAW_PRACTICE: Question[] = [
     prompt: "A startup wants to store large amounts of photos and videos cheaply. Which service fits best?",
     options: ["Azure Blob Storage", "Azure Virtual Machines", "Azure DNS", "Azure Policy"],
     answer: 0,
-    explanation: "Blob Storage is built for unstructured data such as images, video and backups.",
+    explanation: "Blob Storage is built for large amounts of unstructured data — files that don't fit neatly into tables, such as images, video and backups.",
     wrong: {
       1: "Virtual machines provide computing power. Using their disks for large media is more expensive and harder to manage.",
       2: "Azure DNS translates domain names into addresses. It does not store files.",
@@ -487,7 +487,7 @@ const RAW_PRACTICE: Question[] = [
     options: ["A resource lock", "A tag", "A new region", "A public IP address"],
     answer: 0,
     explanation:
-      "A delete lock (CanNotDelete) prevents a resource from being deleted until the lock is removed.",
+      "A delete lock (CanNotDelete) protects a resource from accidental deletion. People can still use and change it, but nobody can delete it until the lock is removed.",
     wrong: {
       1: "Tags are labels. They do not protect anything.",
       2: "Moving to a new region does not stop deletion.",

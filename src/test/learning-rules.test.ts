@@ -66,6 +66,19 @@ describe("answer recording", () => {
   });
 });
 
+describe("answer feedback content", () => {
+  it("every practice question explains the right answer, gives an example, and explains each wrong option", () => {
+    for (const q of PRACTICE_QUESTIONS) {
+      expect(q.explanation.trim().length, q.id).toBeGreaterThan(0);
+      expect(q.example.trim().length, q.id).toBeGreaterThan(0);
+      q.options.forEach((_, i) => {
+        if (i !== q.answer) expect(q.wrong?.[i]?.trim().length ?? 0, `${q.id} option ${i}`).toBeGreaterThan(0);
+      });
+      expect(q.wrong?.[q.answer], q.id).toBeUndefined();
+    }
+  });
+});
+
 describe("missed-question flashcards", () => {
   it("adds a card when a practice question is answered incorrectly", () => {
     const qid = Q(0).id;
