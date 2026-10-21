@@ -1,0 +1,396 @@
+/**
+ * Pure state logic for CloudPrep Africa. No browser APIs here, so every rule
+ * can be unit-tested. The localStorage wrapper lives in progress-store.ts.
+ */
+import type { DomainId } from "@/data/domains";
+import { DOMAINS } from "@/data/domains";
+import { PRACTICE_QUESTIONS, QUESTION_BY_ID } from "@/data/questions";
+import { POST_TEST, PRE_TEST, TEST_QUESTION_BY_ID } from "@/data/tests";
+
+export const STORAGE_KEY = "cloudprep-africa-progress";
+export const STATE_VERSION = 2;
+export const DAY_MS = 24 * 60 * 60 * 1000;
+/** Review intervals for flashcards, in days. */
+export const REVIEW_INTERVAL_DAYS = [1, 2, 4, 8, 16] as const;
+/** Distinct practice questions a learner must answer before the post-test unlocks. */
+export const POST_TEST_MIN_PRACTICE = 20;
+const MAX_HISTORY = 2000;
+const MAX_SESSIONS = 100;
+
+export type QuizMode = "all" | "domain" | "adaptive";
+export type TestKind = "pre" | "post";
+
+export interface AnswerRecord {
+  selected: number;
+  correct: boolean;
+  at: number;
+  attempts: number;
+  correctCount: number;
+}
+
+export interface HistoryEvent {
+  /** `${quizId}:${questionId}` — unique, so the same answer is never counted twice. */
+  id: string;
+  qid: string;
+  correct: boolean;
+  at: number;
+}
+
+export interface CurrentQuiz {
+  id: string;
+  mode: QuizMode;
+  domain?: DomainId;
+  questionIds: string[];
+  index: number;
+  responses: Record<string, number>;
+  reasons?: Record<string, string>;
+  startedAt: number;
+}
+
+export interface Session {
+  id: string;
+  mode: QuizMode;
+  domain?: DomainId;
+  questionIds: string[];
+  responses: Record<string, number>;
+  correct: number;
+  total: number;
+  startedAt: number;
+  finishedAt: number;
+}
+
+export interface Card {
+  qid: string;
+  /** 0 = new/again. Each "Got it" moves the card up one step. */
+  step: number;
+  due: number;
+  addedAt: number;
+  lastReviewed?: number;
+  reviews: number;
+  lapses: number;
+}
+
+export interface TestResult {
+  id: string;
+  kind: TestKind;
+  questionIds: string[];
+  responses: Record<string, number>;
+  correct: number;
+  total: number;
+  byDomain: Record<DomainId, { correct: number; total: number }>;
+  finishedAt: number;
+}
+
+export interface CurrentTest {
+  id: string;
+  kind: TestKind;
+  questionIds: string[];
+  index: number;
+  responses: Record<string, number>;
+  startedAt: number;
+}
+
+export interface ProgressState {
+  version: typeof STATE_VERSION;
+  answers: Record<string, AnswerRecord>;
+  history: HistoryEvent[];
+  sessions: Session[];
+  currentQuiz: CurrentQuiz | null;
+  cards: Record<string, Card>;
+  tests: { pre?: TestResult; post?: TestResult; postHistory: TestResult[] };
+  currentTest: CurrentTest | null;
+}
+
+export function emptyState(): ProgressState {
+  return {
+    version: STATE_VERSION,
+    answers: {},
+    history: [],
+    sessions: [],
+    currentQuiz: null,
+    cards: {},
+    tests: { postHistory: [] },
+    currentTest: null,
+  };
+}
+
+const isObj = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null && !Array.isArray(v);
+
+/** Accepts anything read from storage and returns a safe, valid state. */
+export function sanitizeState(raw: unknown): ProgressState {
+  const base = emptyState();
+  if (!isObj(raw) || raw.version !== STATE_VERSION) return base;
+  const answers: Record<string, AnswerRecord> = {};
+  if (isObj(raw.answers)) {
+    for (const [qid, a] of Object.entries(raw.answers)) {
+      if (QUESTION_BY_ID[qid] && isObj(a) && typeof a.selected === "number") {
+        answers[qid] = a as unknown as AnswerRecord;
+      }
+    }
+  }
+  const cards: Record<string, Card> = {};
+  if (isObj(raw.cards)) {
+    for (const [qid, c] of Object.entries(raw.cards)) {
+      if (QUESTION_BY_ID[qid] && isObj(c) && typeof c.due === "number") {
+        cards[qid] = c as unknown as Card;
+      }
+    }
+  }
+  const validQuiz = (q: unknown): q is CurrentQuiz =>
+    isObj(q) &&
+    Array.isArray(q.questionIds) &&
+    q.questionIds.length > 0 &&
+    q.questionIds.every((id) => typeof id === "string" && !!QUESTION_BY_ID[id]) &&
+    typeof q.index === "number" &&
+    isObj(q.responses);
+  const validTest = (t: unknown): t is CurrentTest =>
+    isObj(t) &&
+    Array.isArray(t.questionIds) &&
+    t.questionIds.every((id) => typeof id === "string" && !!TEST_QUESTION_BY_ID[id]) &&
+    typeof t.index === "number" &&
+    isObj(t.responses);
+  const tests = isObj(raw.tests) ? raw.tests : {};
+  return {
+    version: STATE_VERSION,
+    answers,
+    history: Array.isArray(raw.history) ? (raw.history as HistoryEvent[]) : [],
+    sessions: Array.isArray(raw.sessions) ? (raw.sessions as Session[]) : [],
+    currentQuiz: validQuiz(raw.currentQuiz) ? raw.currentQuiz : null,
+    cards,
+    tests: {
+      pre: isObj(tests.pre) ? (tests.pre as unknown as TestResult) : undefined,
+      post: isObj(tests.post) ? (tests.post as unknown as TestResult) : undefined,
+      postHistory: Array.isArray(tests.postHistory) ? (tests.postHistory as TestResult[]) : [],
+    },
+    currentTest: validTest(raw.currentTest) ? raw.currentTest : null,
+  };
+}
+
+// ---------------- Practice quizzes ----------------
+
+export function startQuiz(
+  state: ProgressState,
+  quiz: Omit<CurrentQuiz, "index" | "responses">,
+): ProgressState {
+  return { ...state, currentQuiz: { ...quiz, index: 0, responses: {} } };
+}
+
+/**
+ * Records one answer. Ignored (state returned unchanged) when the quiz is not
+ * the active one or this question was already answered in this quiz, so
+ * double taps and page refreshes can never record the same answer twice.
+ */
+export function answerQuestion(
+  state: ProgressState,
+  quizId: string,
+  qid: string,
+  selected: number,
+  now: number,
+): ProgressState {
+  const quiz = state.currentQuiz;
+  const q = QUESTION_BY_ID[qid];
+  if (!quiz || quiz.id !== quizId || !q || !quiz.questionIds.includes(qid)) return state;
+  if (qid in quiz.responses) return state;
+  const eventId = `${quizId}:${qid}`;
+  if (state.history.some((h) => h.id === eventId)) return state;
+
+  const correct = selected === q.answer;
+  const prev = state.answers[qid];
+  const answers = {
+    ...state.answers,
+    [qid]: {
+      selected,
+      correct,
+      at: now,
+      attempts: (prev?.attempts ?? 0) + 1,
+      correctCount: (prev?.correctCount ?? 0) + (correct ? 1 : 0),
+    },
+  };
+
+  let cards = state.cards;
+  if (!correct) {
+    const existing = state.cards[qid];
+    cards = {
+      ...state.cards,
+      [qid]: existing
+        ? { ...existing, step: 0, due: now, lapses: existing.lapses + 1 }
+        : { qid, step: 0, due: now, addedAt: now, reviews: 0, lapses: 0 },
+    };
+  }
+
+  const history = [...state.history, { id: eventId, qid, correct, at: now }].slice(-MAX_HISTORY);
+
+  return {
+    ...state,
+    answers,
+    history,
+    cards,
+    currentQuiz: { ...quiz, responses: { ...quiz.responses, [qid]: selected } },
+  };
+}
+
+export function goToNextQuestion(state: ProgressState): ProgressState {
+  const quiz = state.currentQuiz;
+  if (!quiz) return state;
+  const current = quiz.questionIds[quiz.index];
+  if (!(current in quiz.responses)) return state;
+  if (quiz.index >= quiz.questionIds.length - 1) return state;
+  return { ...state, currentQuiz: { ...quiz, index: quiz.index + 1 } };
+}
+
+export function finishQuiz(state: ProgressState, now: number): ProgressState {
+  const quiz = state.currentQuiz;
+  if (!quiz) return state;
+  if (state.sessions.some((s) => s.id === quiz.id)) return { ...state, currentQuiz: null };
+  const answeredIds = quiz.questionIds.filter((id) => id in quiz.responses);
+  if (answeredIds.length === 0) return { ...state, currentQuiz: null };
+  const correct = answeredIds.filter((id) => quiz.responses[id] === QUESTION_BY_ID[id].answer).length;
+  const session: Session = {
+    id: quiz.id,
+    mode: quiz.mode,
+    domain: quiz.domain,
+    questionIds: answeredIds,
+    responses: quiz.responses,
+    correct,
+    total: answeredIds.length,
+    startedAt: quiz.startedAt,
+    finishedAt: now,
+  };
+  return {
+    ...state,
+    currentQuiz: null,
+    sessions: [...state.sessions, session].slice(-MAX_SESSIONS),
+  };
+}
+
+export function abandonQuiz(state: ProgressState): ProgressState {
+  return { ...state, currentQuiz: null };
+}
+
+// ---------------- Flashcards ----------------
+
+export type ReviewGrade = "again" | "good";
+
+/** Days until the next review after pressing "Got it" on a card at `step`. */
+export function intervalForStep(step: number): number {
+  const i = Math.min(Math.max(step, 0), REVIEW_INTERVAL_DAYS.length - 1);
+  return REVIEW_INTERVAL_DAYS[i];
+}
+
+export function reviewCard(
+  state: ProgressState,
+  qid: string,
+  grade: ReviewGrade,
+  now: number,
+): ProgressState {
+  const card = state.cards[qid];
+  if (!card) return state;
+  const next: Card =
+    grade === "good"
+      ? {
+          ...card,
+          step: Math.min(card.step + 1, REVIEW_INTERVAL_DAYS.length),
+          due: now + intervalForStep(card.step) * DAY_MS,
+          lastReviewed: now,
+          reviews: card.reviews + 1,
+        }
+      : { ...card, step: 0, due: now, lastReviewed: now, reviews: card.reviews + 1, lapses: card.lapses + 1 };
+  return { ...state, cards: { ...state.cards, [qid]: next } };
+}
+
+export function dueCards(state: ProgressState, now: number): Card[] {
+  return Object.values(state.cards)
+    .filter((c) => c.due <= now)
+    .sort((a, b) => a.due - b.due);
+}
+
+// ---------------- Pre-test / post-test ----------------
+
+export function testQuestions(kind: TestKind) {
+  return kind === "pre" ? PRE_TEST : POST_TEST;
+}
+
+export function distinctPracticeAnswered(state: ProgressState): number {
+  return Object.keys(state.answers).length;
+}
+
+export function canTakePostTest(state: ProgressState): boolean {
+  return !!state.tests.pre && distinctPracticeAnswered(state) >= POST_TEST_MIN_PRACTICE;
+}
+
+export function startTest(state: ProgressState, kind: TestKind, id: string, now: number): ProgressState {
+  if (kind === "pre" && state.tests.pre) return state;
+  if (kind === "post" && !canTakePostTest(state)) return state;
+  return {
+    ...state,
+    currentTest: {
+      id,
+      kind,
+      questionIds: testQuestions(kind).map((q) => q.id),
+      index: 0,
+      responses: {},
+      startedAt: now,
+    },
+  };
+}
+
+export function answerTestQuestion(
+  state: ProgressState,
+  testId: string,
+  qid: string,
+  selected: number,
+): ProgressState {
+  const t = state.currentTest;
+  if (!t || t.id !== testId || !t.questionIds.includes(qid) || qid in t.responses) return state;
+  const index = Math.min(t.index + 1, t.questionIds.length - 1);
+  return { ...state, currentTest: { ...t, responses: { ...t.responses, [qid]: selected }, index } };
+}
+
+export function finishTest(state: ProgressState, now: number): ProgressState {
+  const t = state.currentTest;
+  if (!t) return state;
+  if (t.questionIds.some((id) => !(id in t.responses))) return state;
+  const byDomain = Object.fromEntries(DOMAINS.map((d) => [d.id, { correct: 0, total: 0 }])) as TestResult["byDomain"];
+  let correct = 0;
+  for (const id of t.questionIds) {
+    const q = TEST_QUESTION_BY_ID[id];
+    const ok = t.responses[id] === q.answer;
+    byDomain[q.domain].total += 1;
+    if (ok) {
+      byDomain[q.domain].correct += 1;
+      correct += 1;
+    }
+  }
+  const result: TestResult = {
+    id: t.id,
+    kind: t.kind,
+    questionIds: t.questionIds,
+    responses: t.responses,
+    correct,
+    total: t.questionIds.length,
+    byDomain,
+    finishedAt: now,
+  };
+  const tests =
+    t.kind === "pre"
+      ? { ...state.tests, pre: state.tests.pre ?? result }
+      : {
+          ...state.tests,
+          post: result,
+          postHistory: state.tests.postHistory.some((r) => r.id === result.id)
+            ? state.tests.postHistory
+            : [...state.tests.postHistory, result].slice(-20),
+        };
+  return { ...state, tests, currentTest: null };
+}
+
+export function abandonTest(state: ProgressState): ProgressState {
+  return { ...state, currentTest: null };
+}
+
+export function percent(correct: number, total: number): number {
+  return total === 0 ? 0 : Math.round((correct / total) * 100);
+}
+
+export { PRACTICE_QUESTIONS };
