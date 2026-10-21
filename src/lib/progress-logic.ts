@@ -180,6 +180,11 @@ export function sanitizeState(input: unknown): ProgressState {
 
 // ---------------- Practice quizzes ----------------
 
+/** Question ids for a practice set: one learning area, or all of them. */
+export function questionIdsFor(domain?: DomainId): string[] {
+  return PRACTICE_QUESTIONS.filter((q) => !domain || q.domain === domain).map((q) => q.id);
+}
+
 export function startQuiz(
   state: ProgressState,
   quiz: Omit<CurrentQuiz, "index" | "responses">,
@@ -412,13 +417,31 @@ export function finishTest(state: ProgressState, now: number): ProgressState {
           post: result,
           postHistory: state.tests.postHistory.some((r) => r.id === result.id)
             ? state.tests.postHistory
-            : [...state.tests.postHistory, result].slice(-20),
+            : [...state.tests.postHistory, result],
         };
   return { ...state, tests, currentTest: null };
 }
 
 export function abandonTest(state: ProgressState): ProgressState {
   return { ...state, currentTest: null };
+}
+
+/** Every completed test, oldest first: the baseline plus all post-test attempts. Nothing is ever dropped. */
+export function testHistory(state: ProgressState): TestResult[] {
+  const all = [...(state.tests.pre ? [state.tests.pre] : []), ...state.tests.postHistory];
+  if (state.tests.post && !all.some((r) => r.id === state.tests.post?.id)) all.push(state.tests.post);
+  return all.sort((a, b) => a.finishedAt - b.finishedAt);
+}
+
+/** Baseline vs latest post-test, in percentage points. Null until both exist. */
+export function testComparison(
+  state: ProgressState,
+): { pre: TestResult; post: TestResult; prePct: number; postPct: number; change: number } | null {
+  const { pre, post } = state.tests;
+  if (!pre || !post) return null;
+  const prePct = percent(pre.correct, pre.total);
+  const postPct = percent(post.correct, post.total);
+  return { pre, post, prePct, postPct, change: postPct - prePct };
 }
 
 export function percent(correct: number, total: number): number {
