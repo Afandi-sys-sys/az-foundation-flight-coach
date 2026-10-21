@@ -23,7 +23,7 @@ export function domainStats(state: ProgressState, questions: Question[] = PRACTI
   return DOMAINS.map((d) => {
     const qs = questions.filter((q) => q.domain === d.id);
     const answered = qs.filter((q) => state.answers[q.id]);
-    const correct = answered.filter((q) => state.answers[q.id].correct).length;
+    const correct = answered.filter((q) => state.answers[q.id]?.correct).length;
     return {
       id: d.id,
       name: d.name,
@@ -108,7 +108,7 @@ export function pickAdaptive(
   scored.sort((x, y) => y.score - x.score);
   const chosen = scored.slice(0, Math.min(count, scored.length));
   const answeredAny = stats.some((s) => s.answered > 0);
-  const focus = answeredAny ? [...stats].sort((a, b) => a.mastery - b.mastery)[0] : null;
+  const focus = answeredAny ? ([...stats].sort((a, b) => a.mastery - b.mastery)[0] ?? null) : null;
   return {
     ids: chosen.map((c) => c.q.id),
     reasons: Object.fromEntries(chosen.map((c) => [c.q.id, c.reason])),

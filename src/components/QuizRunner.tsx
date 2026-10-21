@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { QUESTION_BY_ID } from "@/data/questions";
+import { question as getQuestion } from "@/data/questions";
 import { abandonQuiz, answerQuestion, finishQuiz, goToNextQuestion, type CurrentQuiz } from "@/lib/progress-logic";
 import { updateProgress } from "@/lib/progress-store";
 import { AnswerFeedback, QuestionCard } from "./QuestionCard";
@@ -9,9 +9,9 @@ import { Panel, ProgressBar } from "./kit";
 
 export function QuizRunner({ quiz }: { quiz: CurrentQuiz }) {
   const navigate = useNavigate();
-  const qid = quiz.questionIds[quiz.index];
-  const question = QUESTION_BY_ID[qid];
-  const submitted = qid in quiz.responses ? quiz.responses[qid] : null;
+  const qid = quiz.questionIds[quiz.index] ?? quiz.questionIds[0] ?? "";
+  const question = getQuestion(qid);
+  const submitted = quiz.responses[qid] ?? null;
   const [chosen, setChosen] = useState<number | null>(null);
   const isLast = quiz.index === quiz.questionIds.length - 1;
   const answeredCount = Object.keys(quiz.responses).length;

@@ -51,7 +51,13 @@ function PracticePage() {
   const startSet = (domain?: DomainId) => {
     const ids = PRACTICE_QUESTIONS.filter((q) => !domain || q.domain === domain).map((q) => q.id);
     updateProgress((s) =>
-      startQuiz(s, { id: newId("quiz"), mode: domain ? "domain" : "all", domain, questionIds: ids, startedAt: Date.now() }),
+      startQuiz(s, {
+        id: newId("quiz"),
+        mode: domain ? "domain" : "all",
+        domain,
+        questionIds: ids,
+        startedAt: Date.now(),
+      }),
     );
   };
 

@@ -3,7 +3,7 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Panel, ProgressBar } from "@/components/kit";
 import { DOMAINS } from "@/data/domains";
-import { QUESTION_BY_ID } from "@/data/questions";
+import { question } from "@/data/questions";
 import { percent } from "@/lib/progress-logic";
 import { useProgress } from "@/lib/progress-store";
 
@@ -39,8 +39,8 @@ function ResultsPage() {
 
   const score = percent(session.correct, session.total);
   const byDomain = DOMAINS.map((d) => {
-    const ids = session.questionIds.filter((id) => QUESTION_BY_ID[id].domain === d.id);
-    const correct = ids.filter((id) => session.responses[id] === QUESTION_BY_ID[id].answer).length;
+    const ids = session.questionIds.filter((id) => question(id).domain === d.id);
+    const correct = ids.filter((id) => session.responses[id] === question(id).answer).length;
     return { ...d, total: ids.length, correct };
   }).filter((d) => d.total > 0);
   const toRevise = byDomain.filter((d) => percent(d.correct, d.total) < 80);
@@ -94,7 +94,7 @@ function ResultsPage() {
         <h2 className="text-xl font-bold">Your answers</h2>
         <ul className="mt-4 divide-y divide-border">
           {session.questionIds.map((id) => {
-            const q = QUESTION_BY_ID[id];
+            const q = question(id);
             const ok = session.responses[id] === q.answer;
             return (
               <li key={id} className="flex gap-3 py-3">

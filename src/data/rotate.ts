@@ -14,8 +14,9 @@ export function rotateOptions(q: Question, k: number): Question {
   q.options.forEach((opt, i) => {
     options[to(i)] = opt;
   });
-  const wrong: Partial<Record<number, string>> | undefined = q.wrong
-    ? Object.fromEntries(Object.entries(q.wrong).map(([i, text]) => [to(Number(i)), text]))
-    : undefined;
-  return { ...q, options, answer: to(q.answer), wrong };
+  const rotated: Question = { ...q, options, answer: to(q.answer) };
+  if (q.wrong) {
+    rotated.wrong = Object.fromEntries(Object.entries(q.wrong).map(([i, text]) => [to(Number(i)), text]));
+  }
+  return rotated;
 }

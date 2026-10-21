@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeading, Panel, ProgressBar } from "@/components/kit";
 import { QuestionCard } from "@/components/QuestionCard";
 import { DOMAINS } from "@/data/domains";
-import { TEST_QUESTION_BY_ID } from "@/data/tests";
+import { testQuestion } from "@/data/tests";
 import { formatDate, signed } from "@/lib/format";
 import {
   abandonTest,
@@ -225,7 +225,7 @@ function TestReview({ result }: { result: TestResult }) {
   return (
     <ul className="mt-5 space-y-3">
       {result.questionIds.map((id, i) => {
-        const q = TEST_QUESTION_BY_ID[id];
+        const q = testQuestion(id);
         const picked = result.responses[id];
         const ok = picked === q.answer;
         return (
@@ -238,7 +238,7 @@ function TestReview({ result }: { result: TestResult }) {
               )}
               {i + 1}. {q.prompt}
             </p>
-            {!ok ? <p className="mt-2 text-muted-foreground">Your answer: {q.options[picked]}</p> : null}
+            {!ok && picked !== undefined ? <p className="mt-2 text-muted-foreground">Your answer: {q.options[picked]}</p> : null}
             <p className="mt-1">
               <span className="text-muted-foreground">Correct answer: </span>
               {q.options[q.answer]}
@@ -257,8 +257,8 @@ function TestRunner({ test, onDone }: { test: CurrentTest; onDone: (k: TestKind)
   const answered = Object.keys(test.responses).length;
   const total = test.questionIds.length;
   const allAnswered = answered === total;
-  const qid = test.questionIds[test.index];
-  const q = TEST_QUESTION_BY_ID[qid];
+  const qid = test.questionIds[test.index] ?? test.questionIds[0] ?? "";
+  const q = testQuestion(qid);
   const isLast = answered === total - 1;
 
   const submit = () => {

@@ -15,7 +15,7 @@ export interface Question {
   /** Why the correct answer is right. */
   explanation: string;
   /** Why a specific wrong option is wrong, keyed by option index. */
-  wrong?: Partial<Record<number, string>>;
+  wrong?: Partial<Record<number, string>> | undefined;
   /** A practical, real-world example. */
   example: string;
 }
@@ -661,3 +661,10 @@ export const PRACTICE_QUESTIONS: Question[] = RAW_PRACTICE.map((q, i) =>
 export const QUESTION_BY_ID: Record<string, Question> = Object.fromEntries(
   PRACTICE_QUESTIONS.map((q) => [q.id, q]),
 );
+
+/** Looks up a practice question that is known to exist. */
+export function question(id: string): Question {
+  const q = QUESTION_BY_ID[id];
+  if (!q) throw new Error(`Unknown practice question: ${id}`);
+  return q;
+}

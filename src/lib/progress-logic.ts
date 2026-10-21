@@ -4,8 +4,8 @@
  */
 import type { DomainId } from "@/data/domains";
 import { DOMAINS } from "@/data/domains";
-import { PRACTICE_QUESTIONS, QUESTION_BY_ID } from "@/data/questions";
-import { POST_TEST, PRE_TEST, TEST_QUESTION_BY_ID } from "@/data/tests";
+import { PRACTICE_QUESTIONS, question, QUESTION_BY_ID } from "@/data/questions";
+import { POST_TEST, PRE_TEST, TEST_QUESTION_BY_ID, testQuestion } from "@/data/tests";
 
 export const STORAGE_KEY = "cloudprep-africa-progress";
 export const STATE_VERSION = 2;
@@ -39,18 +39,18 @@ export interface HistoryEvent {
 export interface CurrentQuiz {
   id: string;
   mode: QuizMode;
-  domain?: DomainId;
+  domain?: DomainId | undefined;
   questionIds: string[];
   index: number;
   responses: Record<string, number>;
-  reasons?: Record<string, string>;
+  reasons?: Record<string, string> | undefined;
   startedAt: number;
 }
 
 export interface Session {
   id: string;
   mode: QuizMode;
-  domain?: DomainId;
+  domain?: DomainId | undefined;
   questionIds: string[];
   responses: Record<string, number>;
   correct: number;
@@ -97,7 +97,7 @@ export interface ProgressState {
   sessions: Session[];
   currentQuiz: CurrentQuiz | null;
   cards: Record<string, Card>;
-  tests: { pre?: TestResult; post?: TestResult; postHistory: TestResult[] };
+  tests: { pre?: TestResult | undefined; post?: TestResult | undefined; postHistory: TestResult[] };
   currentTest: CurrentTest | null;
 }
 
@@ -117,14 +117,27 @@ export function emptyState(): ProgressState {
 const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 
+type RawState = {
+  version?: unknown;
+  answers?: unknown;
+  history?: unknown;
+  sessions?: unknown;
+  currentQuiz?: unknown;
+  cards?: unknown;
+  tests?: unknown;
+  currentTest?: unknown;
+};
+
 /** Accepts anything read from storage and returns a safe, valid state. */
-export function sanitizeState(raw: unknown): ProgressState {
+export function sanitizeState(input: unknown): ProgressState {
   const base = emptyState();
-  if (!isObj(raw) || raw.version !== STATE_VERSION) return base;
+  if (!isObj(input)) return base;
+  const raw = input as RawState;
+  if (raw.version !== STATE_VERSION) return base;
   const answers: Record<string, AnswerRecord> = {};
   if (isObj(raw.answers)) {
     for (const [qid, a] of Object.entries(raw.answers)) {
-      if (QUESTION_BY_ID[qid] && isObj(a) && typeof a.selected === "number") {
+      if (QUESTION_BY_ID[qid] && isObj(a) && typeof a["selected"] === "number") {
         answers[qid] = a as unknown as AnswerRecord;
       }
     }
@@ -132,38 +145,36 @@ export function sanitizeState(raw: unknown): ProgressState {
   const cards: Record<string, Card> = {};
   if (isObj(raw.cards)) {
     for (const [qid, c] of Object.entries(raw.cards)) {
-      if (QUESTION_BY_ID[qid] && isObj(c) && typeof c.due === "number") {
+      if (QUESTION_BY_ID[qid] && isObj(c) && typeof c["due"] === "number") {
         cards[qid] = c as unknown as Card;
       }
     }
   }
-  const validQuiz = (q: unknown): q is CurrentQuiz =>
-    isObj(q) &&
-    Array.isArray(q.questionIds) &&
-    q.questionIds.length > 0 &&
-    q.questionIds.every((id) => typeof id === "string" && !!QUESTION_BY_ID[id]) &&
-    typeof q.index === "number" &&
-    isObj(q.responses);
-  const validTest = (t: unknown): t is CurrentTest =>
-    isObj(t) &&
-    Array.isArray(t.questionIds) &&
-    t.questionIds.every((id) => typeof id === "string" && !!TEST_QUESTION_BY_ID[id]) &&
-    typeof t.index === "number" &&
-    isObj(t.responses);
-  const tests = isObj(raw.tests) ? raw.tests : {};
+  const validRun = (v: unknown, known: Record<string, unknown>): boolean => {
+    if (!isObj(v)) return false;
+    const ids = v["questionIds"];
+    return (
+      Array.isArray(ids) &&
+      ids.length > 0 &&
+      ids.every((id) => typeof id === "string" && !!known[id]) &&
+      typeof v["index"] === "number" &&
+      isObj(v["responses"])
+    );
+  };
+  const tests = (isObj(raw.tests) ? raw.tests : {}) as { pre?: unknown; post?: unknown; postHistory?: unknown };
   return {
     version: STATE_VERSION,
     answers,
     history: Array.isArray(raw.history) ? (raw.history as HistoryEvent[]) : [],
     sessions: Array.isArray(raw.sessions) ? (raw.sessions as Session[]) : [],
-    currentQuiz: validQuiz(raw.currentQuiz) ? raw.currentQuiz : null,
+    currentQuiz: validRun(raw.currentQuiz, QUESTION_BY_ID) ? (raw.currentQuiz as CurrentQuiz) : null,
     cards,
     tests: {
       pre: isObj(tests.pre) ? (tests.pre as unknown as TestResult) : undefined,
       post: isObj(tests.post) ? (tests.post as unknown as TestResult) : undefined,
       postHistory: Array.isArray(tests.postHistory) ? (tests.postHistory as TestResult[]) : [],
     },
-    currentTest: validTest(raw.currentTest) ? raw.currentTest : null,
+    currentTest: validRun(raw.currentTest, TEST_QUESTION_BY_ID) ? (raw.currentTest as CurrentTest) : null,
   };
 }
 
@@ -234,7 +245,7 @@ export function goToNextQuestion(state: ProgressState): ProgressState {
   const quiz = state.currentQuiz;
   if (!quiz) return state;
   const current = quiz.questionIds[quiz.index];
-  if (!(current in quiz.responses)) return state;
+  if (current === undefined || !(current in quiz.responses)) return state;
   if (quiz.index >= quiz.questionIds.length - 1) return state;
   return { ...state, currentQuiz: { ...quiz, index: quiz.index + 1 } };
 }
@@ -245,7 +256,7 @@ export function finishQuiz(state: ProgressState, now: number): ProgressState {
   if (state.sessions.some((s) => s.id === quiz.id)) return { ...state, currentQuiz: null };
   const answeredIds = quiz.questionIds.filter((id) => id in quiz.responses);
   if (answeredIds.length === 0) return { ...state, currentQuiz: null };
-  const correct = answeredIds.filter((id) => quiz.responses[id] === QUESTION_BY_ID[id].answer).length;
+  const correct = answeredIds.filter((id) => quiz.responses[id] === question(id).answer).length;
   const session: Session = {
     id: quiz.id,
     mode: quiz.mode,
@@ -275,7 +286,7 @@ export type ReviewGrade = "again" | "good";
 /** Days until the next review after pressing "Got it" on a card at `step`. */
 export function intervalForStep(step: number): number {
   const i = Math.min(Math.max(step, 0), REVIEW_INTERVAL_DAYS.length - 1);
-  return REVIEW_INTERVAL_DAYS[i];
+  return REVIEW_INTERVAL_DAYS[i] ?? REVIEW_INTERVAL_DAYS[REVIEW_INTERVAL_DAYS.length - 1];
 }
 
 export function reviewCard(
@@ -354,7 +365,7 @@ export function finishTest(state: ProgressState, now: number): ProgressState {
   const byDomain = Object.fromEntries(DOMAINS.map((d) => [d.id, { correct: 0, total: 0 }])) as TestResult["byDomain"];
   let correct = 0;
   for (const id of t.questionIds) {
-    const q = TEST_QUESTION_BY_ID[id];
+    const q = testQuestion(id);
     const ok = t.responses[id] === q.answer;
     byDomain[q.domain].total += 1;
     if (ok) {

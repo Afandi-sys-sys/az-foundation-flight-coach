@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeading, Panel, ProgressBar } from "@/components/kit";
 import { ReadinessCard, TopicProgress } from "@/components/Readiness";
 import { DOMAIN_BY_ID } from "@/data/domains";
-import { PRACTICE_QUESTIONS, QUESTION_BY_ID } from "@/data/questions";
+import { PRACTICE_QUESTIONS, question } from "@/data/questions";
 import { formatDate, signed } from "@/lib/format";
 import { dueCards, percent, REVIEW_INTERVAL_DAYS } from "@/lib/progress-logic";
 import { resetProgress, useProgress } from "@/lib/progress-store";
@@ -122,7 +122,7 @@ function ProgressPage() {
         ) : (
           <ul className="mt-3 divide-y divide-border">
             {missed.map(([qid]) => {
-              const q = QUESTION_BY_ID[qid];
+              const q = question(qid);
               return (
                 <li key={qid} className="py-3 text-sm">
                   <p className="text-xs text-muted-foreground">{DOMAIN_BY_ID[q.domain].name}</p>

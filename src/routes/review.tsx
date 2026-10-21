@@ -5,7 +5,7 @@ import { Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeading, Panel } from "@/components/kit";
 import { DOMAIN_BY_ID } from "@/data/domains";
-import { QUESTION_BY_ID } from "@/data/questions";
+import { question } from "@/data/questions";
 import { formatDue } from "@/lib/format";
 import { dueCards, intervalForStep, REVIEW_INTERVAL_DAYS, reviewCard } from "@/lib/progress-logic";
 import { updateProgress, useProgress } from "@/lib/progress-store";
@@ -99,7 +99,7 @@ function ReviewPage() {
             {[...due, ...upcoming].map((c) => (
               <li key={c.qid} className="flex items-start justify-between gap-3 py-3 text-sm">
                 <span className="min-w-0">
-                  <span className="line-clamp-2">{QUESTION_BY_ID[c.qid].prompt}</span>
+                  <span className="line-clamp-2">{question(c.qid).prompt}</span>
                   <span className="mt-0.5 block text-xs text-muted-foreground">
                     Step {Math.min(c.step, REVIEW_INTERVAL_DAYS.length)} of {REVIEW_INTERVAL_DAYS.length}
                   </span>
@@ -131,7 +131,7 @@ function ReviewCardView({
   onReveal: () => void;
   onGrade: (g: "again" | "good") => void;
 }) {
-  const q = QUESTION_BY_ID[qid];
+  const q = question(qid);
   const nextDays = intervalForStep(step);
   return (
     <Panel className="animate-reveal">

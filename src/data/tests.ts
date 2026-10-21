@@ -239,3 +239,10 @@ export const POST_TEST: Question[] = RAW_POST.map((q, i) => rotateOptions(q, i *
 export const TEST_QUESTION_BY_ID: Record<string, Question> = Object.fromEntries(
   [...PRE_TEST, ...POST_TEST].map((q) => [q.id, q]),
 );
+
+/** Looks up a test question that is known to exist. */
+export function testQuestion(id: string): Question {
+  const q = TEST_QUESTION_BY_ID[id];
+  if (!q) throw new Error(`Unknown test question: ${id}`);
+  return q;
+}
