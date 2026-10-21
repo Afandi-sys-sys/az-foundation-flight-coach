@@ -1,3 +1,4 @@
+import type React from "react";
 import { CheckCircle2, Lightbulb, XCircle } from "lucide-react";
 import type { Question } from "@/data/questions";
 import { DOMAIN_BY_ID } from "@/data/domains";
@@ -76,9 +77,20 @@ export function QuestionCard({ question, chosen, submitted, onChoose, revealCorr
   );
 }
 
+function FeedbackSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+      <div className="mt-1 text-sm leading-relaxed text-foreground/90">{children}</div>
+    </div>
+  );
+}
+
 export function AnswerFeedback({ question, selected }: { question: Question; selected: number }) {
   const correct = selected === question.answer;
   const wrongText = !correct ? question.wrong?.[selected] : undefined;
+  const correctLetter = LETTERS[question.answer];
+  const selectedLetter = LETTERS[selected];
   return (
     <div
       role="status"
@@ -89,30 +101,44 @@ export function AnswerFeedback({ question, selected }: { question: Question; sel
       )}
     >
       <p className={cn("flex items-center gap-2 font-display text-lg font-bold", correct ? "text-success" : "text-destructive")}>
-        {correct ? <CheckCircle2 className="size-5" aria-hidden /> : <XCircle className="size-5" aria-hidden />}
-        {correct ? "Correct!" : "Not quite."}
+        {correct ? <CheckCircle2 className="size-6" aria-hidden /> : <XCircle className="size-6" aria-hidden />}
+        {correct ? "Correct!" : "Not quite"}
       </p>
-      <div>
-        <p className="text-sm font-semibold">
-          Why “{question.options[question.answer]}” is right
+
+      <FeedbackSection title="Correct answer">
+        <p className="flex items-start gap-2 font-semibold text-foreground">
+          <span
+            className="flex size-6 shrink-0 items-center justify-center rounded-full bg-success text-xs font-bold text-success-foreground"
+            aria-hidden
+          >
+            {correctLetter}
+          </span>
+          <span>{question.options[question.answer]}</span>
         </p>
-        <p className="mt-1 text-sm leading-relaxed text-foreground/90">{question.explanation}</p>
-      </div>
+      </FeedbackSection>
+
+      <FeedbackSection title="Why it is correct">
+        <p>{question.explanation}</p>
+      </FeedbackSection>
+
       {!correct ? (
-        <div>
-          <p className="text-sm font-semibold">Why “{question.options[selected]}” is not right</p>
-          <p className="mt-1 text-sm leading-relaxed text-foreground/90">
+        <FeedbackSection title="Why your choice was incorrect">
+          <p>
+            <span className="font-semibold text-foreground">
+              You chose {selectedLetter}: “{question.options[selected]}”.
+            </span>{" "}
             {wrongText ?? "This option doesn't match what the question describes. Compare it with the explanation above."}
           </p>
-        </div>
+        </FeedbackSection>
       ) : null}
+
       <div className="flex gap-3 rounded-xl bg-background/40 p-4">
         <Lightbulb className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden />
-        <div>
-          <p className="text-sm font-semibold">Real-world example</p>
-          <p className="mt-1 text-sm leading-relaxed text-foreground/90">{question.example}</p>
-        </div>
+        <FeedbackSection title="Real-world example">
+          <p>{question.example}</p>
+        </FeedbackSection>
       </div>
+
       {!correct ? (
         <p className="text-xs text-muted-foreground">Added to your Review cards so you can practise it again.</p>
       ) : null}
