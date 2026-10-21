@@ -140,7 +140,7 @@ export function AnswerFeedback({ question, selected }: { question: Question; sel
       </div>
 
       {!correct ? (
-        <p className="text-xs text-muted-foreground">Added to your Review cards so you can practise it again.</p>
+        <p className="text-xs text-muted-foreground">Saved to your Revision Flashcards so you can practise it again.</p>
       ) : null}
     </div>
   );

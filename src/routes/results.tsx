@@ -123,7 +123,7 @@ function ResultsPage() {
         </Button>
         {missedCount > 0 ? (
           <Button asChild variant="soft" size="xl">
-            <Link to="/review">Review missed questions</Link>
+            <Link to="/review">Open Revision Flashcards</Link>
           </Button>
         ) : null}
       </div>

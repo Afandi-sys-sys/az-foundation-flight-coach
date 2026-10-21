@@ -6,7 +6,7 @@ import { Panel, StatCard } from "@/components/kit";
 import { ReadinessCard, TopicProgress } from "@/components/Readiness";
 import { PRACTICE_QUESTIONS } from "@/data/questions";
 import { useProgress } from "@/lib/progress-store";
-import { canTakePostTest, dueCards, percent, POST_TEST_MIN_PRACTICE } from "@/lib/progress-logic";
+import { canTakePostTest, dueCards, flashcardSummary, percent, POST_TEST_MIN_PRACTICE } from "@/lib/progress-logic";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -64,7 +64,7 @@ function Home() {
   const total = PRACTICE_QUESTIONS.length;
   const last = state.sessions.at(-1);
   const due = hydrated ? dueCards(state, Date.now()).length : 0;
-  const cardCount = Object.keys(state.cards).length;
+  const cards = flashcardSummary(state);
 
   return (
     <div className="space-y-5">
@@ -96,6 +96,47 @@ function Home() {
       <ReadinessCard state={state} />
 
       <Panel>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold">Revision Flashcards</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Questions you miss in practice are saved here to revise.
+            </p>
+          </div>
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-accent">
+            <Layers className="size-5" aria-hidden />
+          </span>
+        </div>
+        {cards.total === 0 ? (
+          <p className="mt-4 rounded-2xl bg-surface p-4 text-sm text-muted-foreground">
+            No missed questions yet. Any question you get wrong will appear here automatically.
+          </p>
+        ) : (
+          <>
+            <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-2xl bg-surface px-2 py-3">
+                <p className="font-display text-2xl font-bold">{cards.total}</p>
+                <p className="text-xs leading-tight text-muted-foreground">Saved</p>
+              </div>
+              <div className="rounded-2xl bg-surface px-2 py-3">
+                <p className="font-display text-2xl font-bold text-warning">{cards.needsRevision}</p>
+                <p className="text-xs leading-tight text-muted-foreground">Need revision</p>
+              </div>
+              <div className="rounded-2xl bg-surface px-2 py-3">
+                <p className="font-display text-2xl font-bold text-success">{cards.understood}</p>
+                <p className="text-xs leading-tight text-muted-foreground">Understood</p>
+              </div>
+            </div>
+            <Button asChild variant={due > 0 ? "hero" : "soft"} size="xl" className="mt-4 w-full">
+              <Link to="/review">
+                {due > 0 ? `Review ${due} ${due === 1 ? "card" : "cards"} now` : "Open flashcards"}
+              </Link>
+            </Button>
+          </>
+        )}
+      </Panel>
+
+      <Panel>
         <h2 className="text-xl font-bold">Your next steps</h2>
         <div className="mt-4 space-y-3">
           {!state.tests.pre ? (
@@ -110,7 +151,7 @@ function Home() {
             <NextStep
               to="/review"
               icon={Layers}
-              title={`${due} review ${due === 1 ? "card" : "cards"} due`}
+              title={`${due} ${due === 1 ? "flashcard" : "flashcards"} to revise`}
               body="Revisit questions you missed, while they're fresh."
             />
           ) : null}
@@ -131,11 +172,6 @@ function Home() {
                   : `Unlocks after ${POST_TEST_MIN_PRACTICE} practice questions (${Math.min(answered, POST_TEST_MIN_PRACTICE)}/${POST_TEST_MIN_PRACTICE}).`
               }
             />
-          ) : null}
-          {cardCount > 0 && due === 0 ? (
-            <p className="px-1 text-sm text-muted-foreground">
-              All review cards are up to date. Nice work.
-            </p>
           ) : null}
         </div>
       </Panel>

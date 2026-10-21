@@ -5,8 +5,10 @@ import {
   answerQuestion,
   answerTestQuestion,
   canTakePostTest,
+  cardStatus,
   DAY_MS,
   emptyState,
+  flashcardSummary,
   finishQuiz,
   finishTest,
   goToNextQuestion,
@@ -113,6 +115,41 @@ describe("missed-question flashcards", () => {
     s = reviewCard(s, qid, "again", NOW + DAY_MS);
     expect(s.cards[qid]?.step).toBe(0);
     expect(s.cards[qid]?.due).toBe(NOW + DAY_MS);
+  });
+
+  it("missing the same question in two quizzes keeps one card and marks it for revision again", () => {
+    const qid = Q(0).id;
+    let s = answerQuestion(withQuiz([qid], "quiz-1"), "quiz-1", qid, wrongOption(qid), NOW);
+    s = reviewCard(s, qid, "good", NOW);
+    expect(cardStatus(s.cards[qid]!)).toBe("understood");
+    s = startQuiz(s, { id: "quiz-2", mode: "all", questionIds: [qid], startedAt: NOW + DAY_MS });
+    s = answerQuestion(s, "quiz-2", qid, wrongOption(qid), NOW + DAY_MS);
+    expect(Object.keys(s.cards)).toEqual([qid]);
+    expect(s.cards[qid]?.lapses).toBe(1);
+    expect(s.cards[qid]?.addedAt).toBe(NOW);
+    expect(cardStatus(s.cards[qid]!)).toBe("needs-revision");
+  });
+
+  it("counts saved, needs-revision and understood cards", () => {
+    const [a, b, c] = [Q(0).id, Q(1).id, Q(2).id];
+    let s = withQuiz([a, b, c]);
+    for (const id of [a, b, c]) s = answerQuestion(s, "quiz-1", id, wrongOption(id), NOW);
+    expect(flashcardSummary(s)).toEqual({ total: 3, needsRevision: 3, understood: 0 });
+    s = reviewCard(s, a, "good", NOW);
+    s = reviewCard(s, b, "again", NOW);
+    expect(flashcardSummary(s)).toEqual({ total: 3, needsRevision: 2, understood: 1 });
+  });
+
+  it("adding flashcards keeps existing quiz answers and results", () => {
+    const [right, wrong] = [Q(0), Q(1)];
+    let s = withQuiz([right.id, wrong.id]);
+    s = answerQuestion(s, "quiz-1", right.id, right.answer, NOW);
+    s = answerQuestion(s, "quiz-1", wrong.id, wrongOption(wrong.id), NOW);
+    s = finishQuiz(s, NOW);
+    s = reviewCard(s, wrong.id, "good", NOW);
+    expect(s.answers[right.id]?.correct).toBe(true);
+    expect(s.sessions).toHaveLength(1);
+    expect(s.sessions[0]?.correct).toBe(1);
   });
 });
 

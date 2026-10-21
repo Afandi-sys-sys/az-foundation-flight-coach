@@ -66,7 +66,7 @@ function ProgressPage() {
           </div>
           <div className="rounded-2xl bg-surface p-3">
             <p className="font-display text-2xl font-bold">{cards.length}</p>
-            <p className="text-xs text-muted-foreground">Review cards</p>
+            <p className="text-xs text-muted-foreground">Flashcards</p>
           </div>
           <div className="rounded-2xl bg-surface p-3">
             <p className="font-display text-2xl font-bold">{due}</p>

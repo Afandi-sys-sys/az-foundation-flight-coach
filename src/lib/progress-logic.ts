@@ -316,6 +316,27 @@ export function dueCards(state: ProgressState, now: number): Card[] {
     .sort((a, b) => a.due - b.due);
 }
 
+export type CardStatus = "needs-revision" | "understood";
+
+/**
+ * A card needs revision when it is new, was marked "Again", or the question
+ * was missed again in practice (all of these reset step to 0). Each "Got it"
+ * moves it up a step, so any step above 0 means "understood for now".
+ */
+export function cardStatus(card: Card): CardStatus {
+  return card.step > 0 ? "understood" : "needs-revision";
+}
+
+export function flashcardSummary(state: ProgressState): {
+  total: number;
+  needsRevision: number;
+  understood: number;
+} {
+  const cards = Object.values(state.cards);
+  const understood = cards.filter((c) => cardStatus(c) === "understood").length;
+  return { total: cards.length, needsRevision: cards.length - understood, understood };
+}
+
 // ---------------- Pre-test / post-test ----------------
 
 export function testQuestions(kind: TestKind) {

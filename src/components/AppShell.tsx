@@ -6,13 +6,14 @@ import { useProgress } from "@/lib/progress-store";
 import { dueCards } from "@/lib/progress-logic";
 import { UnofficialNote } from "./kit";
 
+/** `short` is used in the mobile tab bar, where each tab is only ~60px wide. */
 const NAV = [
-  { to: "/", label: "Home", icon: Home },
-  { to: "/practice", label: "Practice", icon: BookOpenCheck },
-  { to: "/review", label: "Review", icon: Layers },
-  { to: "/tests", label: "Tests", icon: ClipboardCheck },
-  { to: "/results", label: "Results", icon: BarChart3 },
-  { to: "/progress", label: "Progress", icon: LineChart },
+  { to: "/", label: "Home", short: "Home", icon: Home },
+  { to: "/practice", label: "Practice", short: "Practice", icon: BookOpenCheck },
+  { to: "/review", label: "Revision Flashcards", short: "Revision", icon: Layers },
+  { to: "/tests", label: "Tests", short: "Tests", icon: ClipboardCheck },
+  { to: "/results", label: "Results", short: "Results", icon: BarChart3 },
+  { to: "/progress", label: "Progress", short: "Progress", icon: LineChart },
 ] as const;
 
 function useDueCount() {
@@ -82,10 +83,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-nav pb-safe backdrop-blur md:hidden"
       >
         <ul className="mx-auto grid max-w-lg grid-cols-6">
-          {NAV.map(({ to, label, icon: Icon }) => (
+          {NAV.map(({ to, label, short, icon: Icon }) => (
             <li key={to}>
               <Link
                 to={to}
+                aria-label={label}
                 activeOptions={{ exact: to === "/" }}
                 className="group relative flex min-h-[60px] flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium text-muted-foreground data-[status=active]:text-primary"
               >
@@ -97,7 +99,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     </span>
                   ) : null}
                 </span>
-                {label}
+                {short}
               </Link>
             </li>
           ))}
