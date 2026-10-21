@@ -60,7 +60,7 @@ const RAW_PRACTICE: Question[] = [
       3: "Serverless hides servers completely. You only supply code and never touch the operating system.",
     },
     example:
-      "A Lagos fintech team rents a virtual machine so they can install a specific Linux version their security tools need.",
+      "A Lagos fintech team rents a virtual machine in Azure, then installs and maintains its own Linux version and security tools on it.",
   },
   {
     id: "cc-03",
