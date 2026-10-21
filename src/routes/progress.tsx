@@ -1,23 +1,25 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useHydrated } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { PageHeading, Panel, ProgressBar } from "@/components/kit";
-import { ReadinessCard, TopicProgress } from "@/components/Readiness";
+import { PageHeading, Panel } from "@/components/kit";
+import { PracticeOverview, ReadinessCard, TopicProgress } from "@/components/Readiness";
+import { Recommendations } from "@/components/Recommendations";
+import { ComparisonSummary, TestHistoryList } from "@/components/TestHistory";
 import { DOMAIN_BY_ID } from "@/data/domains";
-import { PRACTICE_QUESTIONS, question } from "@/data/questions";
-import { formatDate, signed } from "@/lib/format";
-import { dueCards, percent, REVIEW_INTERVAL_DAYS } from "@/lib/progress-logic";
+import { question } from "@/data/questions";
+import { formatDate } from "@/lib/format";
+import { dueCards, percent } from "@/lib/progress-logic";
 import { resetProgress, useProgress } from "@/lib/progress-store";
 
 export const Route = createFileRoute("/progress")({
   head: () => ({
     meta: [
-      { title: "Your progress — CloudPrep Africa" },
+      { title: "Readiness dashboard — CloudPrep Africa" },
       {
         name: "description",
-        content: "Track answered questions, topic progress, test results, review cards and practice history.",
+        content: "Practice accuracy, topic strengths, test history and personalised recommendations for your AZ-900 study.",
       },
-      { property: "og:title", content: "Your progress — CloudPrep Africa" },
+      { property: "og:title", content: "Readiness dashboard — CloudPrep Africa" },
       { property: "og:description", content: "Your AZ-900 practice progress, saved on this device." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -32,85 +34,36 @@ function ProgressPage() {
   const state = useProgress();
   const hydrated = useHydrated();
   const answered = Object.keys(state.answers).length;
-  const total = PRACTICE_QUESTIONS.length;
   const missed = Object.entries(state.answers).filter(([, a]) => !a.correct);
-  const cards = Object.values(state.cards);
   const due = hydrated ? dueCards(state, Date.now()).length : 0;
-  const mastered = cards.filter((c) => c.step >= REVIEW_INTERVAL_DAYS.length).length;
-  const { pre, post } = state.tests;
 
   const onReset = () => {
-    if (window.confirm("Reset all progress? This deletes your answers, results, review cards and test scores on this device.")) {
+    if (window.confirm("Reset all progress? This deletes your answers, results, flashcards and test scores on this device.")) {
       resetProgress();
     }
   };
 
   return (
     <div className="space-y-5">
-      <PageHeading title="Your progress">
-        Saved on this browser. Based on your most recent answer to each question.
+      <PageHeading eyebrow="Readiness dashboard" title="Your progress">
+        Saved on this browser and built only from your own answers. An unofficial learning indicator, not an exam score.
       </PageHeading>
 
-      <Panel>
-        <div className="mb-2 flex items-baseline justify-between text-sm">
-          <span className="font-semibold">Overall</span>
-          <span className="text-muted-foreground">
-            {answered}/{total} answered
-          </span>
-        </div>
-        <ProgressBar value={(answered / total) * 100} label="Overall answered" />
-        <div className="mt-5 grid grid-cols-3 gap-3 text-center">
-          <div className="rounded-2xl bg-surface p-3">
-            <p className="font-display text-2xl font-bold">{state.sessions.length}</p>
-            <p className="text-xs text-muted-foreground">Quizzes done</p>
-          </div>
-          <div className="rounded-2xl bg-surface p-3">
-            <p className="font-display text-2xl font-bold">{cards.length}</p>
-            <p className="text-xs text-muted-foreground">Flashcards</p>
-          </div>
-          <div className="rounded-2xl bg-surface p-3">
-            <p className="font-display text-2xl font-bold">{due}</p>
-            <p className="text-xs text-muted-foreground">Due now</p>
-          </div>
-        </div>
-        {mastered > 0 ? (
-          <p className="mt-3 text-xs text-muted-foreground">
-            {mastered} {mastered === 1 ? "card has" : "cards have"} passed every review step.
-          </p>
-        ) : null}
-      </Panel>
-
+      <PracticeOverview state={state} due={due} />
       <ReadinessCard state={state} />
-      <TopicProgress state={state} title="By learning area" />
+      <TopicProgress state={state} />
+      <Recommendations state={state} />
 
       <Panel>
-        <h2 className="text-xl font-bold">Test results</h2>
-        {!pre ? (
-          <p className="mt-2 text-sm text-muted-foreground">
-            No tests yet.{" "}
-            <Link to="/tests" className="font-semibold text-primary underline-offset-4 hover:underline">
-              Take the pre-test
-            </Link>
-          </p>
-        ) : (
-          <div className="mt-3 space-y-2 text-sm">
-            <p>
-              Pre-test: <strong>{percent(pre.correct, pre.total)}%</strong>{" "}
-              <span className="text-muted-foreground">({pre.correct}/{pre.total})</span>
-            </p>
-            {post ? (
-              <p>
-                Post-test: <strong>{percent(post.correct, post.total)}%</strong>{" "}
-                <span className="text-muted-foreground">({post.correct}/{post.total})</span> · Change{" "}
-                <strong>
-                  {signed(percent(post.correct, post.total) - percent(pre.correct, pre.total))} points
-                </strong>
-              </p>
-            ) : (
-              <p className="text-muted-foreground">Post-test not taken yet.</p>
-            )}
-          </div>
-        )}
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-xl font-bold">Test results</h2>
+          <Link to="/tests" className="shrink-0 text-sm font-semibold text-primary underline-offset-4 hover:underline">
+            Open tests
+          </Link>
+        </div>
+        <ComparisonSummary state={state} />
+        <h3 className="mt-5 text-sm font-semibold text-muted-foreground">Test history</h3>
+        <TestHistoryList state={state} />
       </Panel>
 
       <Panel>

@@ -305,6 +305,17 @@ export function recommendations(
     }
   }
 
+  const practised = Object.keys(state.answers).length;
+  if (state.tests.pre && practised < POST_TEST_MIN_PRACTICE) {
+    const left = POST_TEST_MIN_PRACTICE - practised;
+    recs.push({
+      id: "post-test",
+      title: "Work towards your post-test",
+      why: `It unlocks after ${POST_TEST_MIN_PRACTICE} different practice questions. ${left} to go (${practised}/${POST_TEST_MIN_PRACTICE}).`,
+      action: { kind: "link", to: "/practice" },
+    });
+  }
+
   if (!recs.some((r) => r.id === "weakest-topic" || r.id === "spread-topics")) {
     recs.push({
       id: "smart-practice",
